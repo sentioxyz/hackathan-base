@@ -12,7 +12,6 @@ const collections = [
   "0x89621713A7fE428c31474608BF7755396846248c"
 ]
 
-
 const BASE_CHAIN_ID = 84531
 
 // define a map from address to collection name
@@ -38,7 +37,7 @@ for (let i = 0; i < collections.length; i++) {
       const to = event.args.to
       const tokenId = Number(event.args.tokenId)
 
-      if (from == "0x0000000000000000000000000000000000000000")
+      if (from == "0x0000000000000000000000000000000000000000") {
         ctx.eventLogger.emit("Mint", {
           distinctId: to,
           tokenId: tokenId,
@@ -46,7 +45,12 @@ for (let i = 0; i < collections.length; i++) {
           collectionAddress: address,
           message: "Mint " + collectionName + " collection #" + tokenId + " token to " + to + "(collection address: " + address + ")"
         })
-      else
+        ctx.meter.Counter("event").add(1, {
+          name: 'Mint',
+          collectionName: collectionName,
+        })
+      }
+      else {
         ctx.eventLogger.emit("Transfer", {
           distinctId: to,
           from: from,
@@ -55,8 +59,21 @@ for (let i = 0; i < collections.length; i++) {
           collectionAddress: address,
           message: "Transfer " + collectionName + " collection #" + tokenId + " token from " + from + " to " + to + "(collection address: " + address + ")"
         })
-
-
+        ctx.meter.Counter("event").add(1, {
+          name: 'Transfer',
+          collectionName: collectionName,
+        })
+      }
     })
-    .onAllEvents(async (event, ctx) => { })
+    .onAllEvents(async (event, ctx) => {
+      const collectionName = await getCollectionName(ctx)
+
+      let eventName = event.name
+      if (eventName != 'Transfer') {
+        ctx.meter.Counter("event").add(1, {
+          name: event.name,
+          collectionName: collectionName,
+        })
+      }
+    })
 }
